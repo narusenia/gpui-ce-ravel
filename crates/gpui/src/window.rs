@@ -2964,6 +2964,8 @@ impl Window {
             let mut deferred_draw = &mut deferred_draws[deferred_draw_ix];
             self.element_id_stack
                 .clone_from(&deferred_draw.element_id_stack);
+            self.text_style_stack
+                .clone_from(&deferred_draw.text_style_stack);
             self.next_frame
                 .dispatch_tree
                 .set_active_node(deferred_draw.parent_node);
@@ -2986,6 +2988,7 @@ impl Window {
         }
         self.next_frame.deferred_draws = deferred_draws;
         self.element_id_stack.clear();
+        self.text_style_stack.clear();
     }
 
     fn deferred_draw_traversal_order(&mut self) -> SmallVec<[usize; 8]> {
