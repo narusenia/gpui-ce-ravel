@@ -1188,6 +1188,7 @@ pub struct Window {
     pub(crate) button_layout_observers: SubscriberSet<(), AnyObserver>,
     active: Rc<Cell<bool>>,
     hovered: Rc<Cell<bool>>,
+    minimized: Rc<Cell<bool>>,
     pub(crate) needs_present: Rc<Cell<bool>>,
     /// Tracks recent input event timestamps to determine if input is arriving at a high rate.
     /// Used to selectively enable VRR optimization only when input rate exceeds 60fps.
@@ -1201,6 +1202,7 @@ pub struct Window {
     long_press_capture: Option<EntityId>,
     pub(crate) refreshing: bool,
     pub(crate) activation_observers: SubscriberSet<(), AnyObserver>,
+    pub(crate) minimized_observers: SubscriberSet<(), AnyObserver>,
     pub(crate) focus: Option<FocusId>,
     focus_enabled: bool,
     /// Incremented every time focus moves. Used to invalidate a
@@ -1434,6 +1436,7 @@ impl Window {
         let invalidator = WindowInvalidator::new(handle.window_id());
         let active = Rc::new(Cell::new(platform_window.is_active()));
         let hovered = Rc::new(Cell::new(platform_window.is_hovered()));
+        let minimized = Rc::new(Cell::new(false));
         let needs_present = Rc::new(Cell::new(false));
         let next_frame_callbacks: Rc<RefCell<Vec<FrameCallback>>> = Default::default();
         let input_rate_tracker = Rc::new(RefCell::new(InputRateTracker::default()));
@@ -1755,6 +1758,21 @@ impl Window {
                     .log_err();
             }
         }));
+        platform_window.on_minimize_status_change(Box::new({
+            let mut cx = cx.to_async();
+            move |minimized| {
+                handle
+                    .update(&mut cx, |_, window, cx| {
+                        window.minimized.set(minimized);
+                        window
+                            .minimized_observers
+                            .clone()
+                            .retain(&(), |callback| callback(window, cx));
+                        window.refresh();
+                    })
+                    .log_err();
+            }
+        }));
         platform_window.on_input({
             let mut cx = cx.to_async();
             Box::new(move |event| {
@@ -1885,6 +1903,7 @@ impl Window {
             button_layout_observers: SubscriberSet::new(),
             active,
             hovered,
+            minimized,
             needs_present,
             input_rate_tracker,
             #[cfg(feature = "profiler")]
@@ -1900,6 +1919,7 @@ impl Window {
             long_press_capture: None,
             refreshing: false,
             activation_observers: SubscriberSet::new(),
+            minimized_observers: SubscriberSet::new(),
             focus: None,
             focus_enabled: true,
             focus_generation: 0,
@@ -1986,6 +2006,22 @@ impl Window {
             (),
             Box::new(move |window, cx| {
                 callback(window, cx);
+                true
+            }),
+        );
+        activate();
+        subscription
+    }
+
+    /// Registers a callback to be invoked when the window is minimized or restored.
+    pub fn observe_window_minimized(
+        &self,
+        mut callback: impl FnMut(bool, &mut Window, &mut App) + 'static,
+    ) -> Subscription {
+        let (subscription, activate) = self.minimized_observers.insert(
+            (),
+            Box::new(move |window, cx| {
+                callback(window.minimized.get(), window, cx);
                 true
             }),
         );
@@ -2527,6 +2563,11 @@ impl Window {
     /// Returns whether this window is focused by the operating system (receiving key events).
     pub fn is_window_active(&self) -> bool {
         self.active.get()
+    }
+
+    /// Returns whether this window is currently minimized.
+    pub fn is_window_minimized(&self) -> bool {
+        self.minimized.get()
     }
 
     /// Returns whether this window is considered to be the window

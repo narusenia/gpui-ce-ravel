@@ -247,6 +247,7 @@ pub struct Callbacks {
     input: Option<Box<dyn FnMut(PlatformInput) -> gpui::DispatchEventResult>>,
     active_status_change: Option<Box<dyn FnMut(bool)>>,
     hovered_status_change: Option<Box<dyn FnMut(bool)>>,
+    minimize_status_change: Option<Box<dyn FnMut(bool)>>,
     resize: Option<Box<dyn FnMut(Size<Pixels>, f32)>>,
     moved: Option<Box<dyn FnMut()>>,
     should_close: Option<Box<dyn FnMut() -> bool>>,
@@ -1124,6 +1125,7 @@ impl X11WindowStatePtr {
             .map(|chunk| u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
 
         let was_active = state.active;
+        let was_hidden = state.hidden;
         state.active = false;
         state.fullscreen = false;
         state.maximized_vertical = false;
@@ -1148,6 +1150,16 @@ impl X11WindowStatePtr {
         // the client, and focus is the conventional means for the user to zero it.
         if state.active && !was_active {
             set_wm_hints_urgency(&self.xcb, self.x_window, false);
+        }
+
+        if state.hidden != was_hidden {
+            let hidden = state.hidden;
+            drop(state);
+            let callback = self.callbacks.borrow_mut().minimize_status_change.take();
+            if let Some(mut fun) = callback {
+                fun(hidden);
+                self.callbacks.borrow_mut().minimize_status_change = Some(fun);
+            }
         }
 
         Ok(())
@@ -1710,6 +1722,10 @@ impl PlatformWindow for X11Window {
 
     fn on_hover_status_change(&self, callback: Box<dyn FnMut(bool)>) {
         self.0.callbacks.borrow_mut().hovered_status_change = Some(callback);
+    }
+
+    fn on_minimize_status_change(&self, callback: Box<dyn FnMut(bool)>) {
+        self.0.callbacks.borrow_mut().minimize_status_change = Some(callback);
     }
 
     fn on_resize(&self, callback: Box<dyn FnMut(Size<Pixels>, f32)>) {

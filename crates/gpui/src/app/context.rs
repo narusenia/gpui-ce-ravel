@@ -458,6 +458,25 @@ impl<'a, T: 'static> Context<'a, T> {
         subscription
     }
 
+    /// Register a callback to be invoked when the window is minimized or restored.
+    pub fn observe_window_minimized(
+        &self,
+        window: &mut Window,
+        mut callback: impl FnMut(bool, &mut T, &mut Window, &mut Context<T>) + 'static,
+    ) -> Subscription {
+        let view = self.weak_entity();
+        let (subscription, activate) = window.minimized_observers.insert(
+            (),
+            Box::new(move |window, cx| {
+                let minimized = window.is_window_minimized();
+                view.update(cx, |view, cx| callback(minimized, view, window, cx))
+                    .is_ok()
+            }),
+        );
+        activate();
+        subscription
+    }
+
     /// Registers a callback to be invoked when the window appearance changes.
     pub fn observe_window_appearance(
         &self,
