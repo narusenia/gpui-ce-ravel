@@ -67,6 +67,7 @@ x11rb::atom_manager! {
         _NET_WM_STATE_FULLSCREEN,
         _NET_WM_STATE_HIDDEN,
         _NET_WM_STATE_FOCUSED,
+        _NET_WM_STATE_ABOVE,
         _NET_ACTIVE_WINDOW,
         _NET_WM_SYNC_REQUEST,
         _NET_WM_SYNC_REQUEST_COUNTER,
@@ -873,8 +874,8 @@ impl Drop for X11Window {
 }
 
 enum WmHintPropertyState {
-    // Remove = 0,
-    // Add = 1,
+    Remove = 0,
+    Add = 1,
     Toggle = 2,
 }
 
@@ -1627,6 +1628,21 @@ impl PlatformWindow for X11Window {
 
     fn is_fullscreen(&self) -> bool {
         self.0.state.borrow().fullscreen
+    }
+
+    fn set_always_on_top(&self, on_top: bool) {
+        let state = self.0.state.borrow();
+        self.set_wm_hints(
+            || "X11 SendEvent to change always-on-top state failed.",
+            if on_top {
+                WmHintPropertyState::Add
+            } else {
+                WmHintPropertyState::Remove
+            },
+            state.atoms._NET_WM_STATE_ABOVE,
+            xproto::AtomEnum::NONE.into(),
+        )
+        .log_err();
     }
 
     fn on_request_frame(&self, callback: Box<dyn FnMut(RequestFrameOptions)>) {

@@ -5255,6 +5255,13 @@ impl Window {
         self.platform_window.minimize();
     }
 
+    /// Sets whether the current window should float above other windows.
+    ///
+    /// Platforms without an always-on-top mechanism log a warning and do nothing.
+    pub fn set_always_on_top(&self, on_top: bool) {
+        self.platform_window.set_always_on_top(on_top);
+    }
+
     /// Toggle full screen status on the current window at the platform level.
     pub fn toggle_fullscreen(&self) {
         self.platform_window.toggle_fullscreen();

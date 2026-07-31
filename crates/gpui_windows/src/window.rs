@@ -924,6 +924,27 @@ impl PlatformWindow for WindowsWindow {
         unsafe { ShowWindowAsync(self.0.hwnd, SW_MINIMIZE).ok().log_err() };
     }
 
+    fn set_always_on_top(&self, on_top: bool) {
+        let hwnd = self.0.hwnd;
+        self.0
+            .executor
+            .spawn(async move {
+                unsafe {
+                    SetWindowPos(
+                        hwnd,
+                        Some(if on_top { HWND_TOPMOST } else { HWND_NOTOPMOST }),
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                    )
+                    .log_err();
+                }
+            })
+            .detach();
+    }
+
     fn zoom(&self) {
         let is_visible = unsafe { IsWindowVisible(self.0.hwnd).as_bool() };
         if !is_visible {

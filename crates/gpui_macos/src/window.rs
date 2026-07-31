@@ -1530,6 +1530,24 @@ impl PlatformWindow for MacWindow {
             .detach();
     }
 
+    fn set_always_on_top(&self, on_top: bool) {
+        let this = self.0.lock();
+        let window = this.native_window;
+        let closed = this.closed.clone();
+        this.foreground_executor
+            .spawn(async move {
+                if_window_not_closed(closed, || unsafe {
+                    let level = if on_top {
+                        NSFloatingWindowLevel
+                    } else {
+                        NSNormalWindowLevel
+                    };
+                    window.setLevel_(level);
+                })
+            })
+            .detach();
+    }
+
     fn is_fullscreen(&self) -> bool {
         let this = self.0.lock();
         let window = this.native_window;
