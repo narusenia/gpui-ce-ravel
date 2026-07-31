@@ -662,6 +662,11 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn on_input(&self, callback: Box<dyn FnMut(PlatformInput) -> DispatchEventResult>);
     fn on_active_status_change(&self, callback: Box<dyn FnMut(bool)>);
     fn on_hover_status_change(&self, callback: Box<dyn FnMut(bool)>);
+    /// Registers a callback invoked with `true` when the window is minimized
+    /// and `false` when it is restored.
+    ///
+    /// The default implementation never invokes the callback.
+    fn on_minimize_status_change(&self, _callback: Box<dyn FnMut(bool)>) {}
     fn on_resize(&self, callback: Box<dyn FnMut(Size<Pixels>, f32)>);
     fn on_moved(&self, callback: Box<dyn FnMut()>);
     fn on_should_close(&self, callback: Box<dyn FnMut() -> bool>);
