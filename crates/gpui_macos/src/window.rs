@@ -400,6 +400,14 @@ unsafe fn build_window_class(name: &'static str, superclass: &Class) -> *const C
             window_did_change_key_status as extern "C" fn(&Object, Sel, id),
         );
         decl.add_method(
+            sel!(windowDidMiniaturize:),
+            window_did_change_miniaturized_status as extern "C" fn(&Object, Sel, id),
+        );
+        decl.add_method(
+            sel!(windowDidDeminiaturize:),
+            window_did_change_miniaturized_status as extern "C" fn(&Object, Sel, id),
+        );
+        decl.add_method(
             sel!(windowShouldClose:),
             window_should_close as extern "C" fn(&Object, Sel, id) -> BOOL,
         );
@@ -476,6 +484,7 @@ struct MacWindowState {
     request_frame_callback: Option<Box<dyn FnMut(RequestFrameOptions)>>,
     event_callback: Option<Box<dyn FnMut(PlatformInput) -> gpui::DispatchEventResult>>,
     activate_callback: Option<Box<dyn FnMut(bool)>>,
+    minimize_status_callback: Option<Box<dyn FnMut(bool)>>,
     resize_callback: Option<Box<dyn FnMut(Size<Pixels>, f32)>>,
     moved_callback: Option<Box<dyn FnMut()>>,
     should_close_callback: Option<Box<dyn FnMut() -> bool>>,
@@ -803,6 +812,7 @@ impl MacWindow {
                 request_frame_callback: None,
                 event_callback: None,
                 activate_callback: None,
+                minimize_status_callback: None,
                 resize_callback: None,
                 moved_callback: None,
                 should_close_callback: None,
@@ -1530,6 +1540,24 @@ impl PlatformWindow for MacWindow {
             .detach();
     }
 
+    fn set_always_on_top(&self, on_top: bool) {
+        let this = self.0.lock();
+        let window = this.native_window;
+        let closed = this.closed.clone();
+        this.foreground_executor
+            .spawn(async move {
+                if_window_not_closed(closed, || unsafe {
+                    let level = if on_top {
+                        NSFloatingWindowLevel
+                    } else {
+                        NSNormalWindowLevel
+                    };
+                    window.setLevel_(level);
+                })
+            })
+            .detach();
+    }
+
     fn is_fullscreen(&self) -> bool {
         let this = self.0.lock();
         let window = this.native_window;
@@ -1554,6 +1582,10 @@ impl PlatformWindow for MacWindow {
     }
 
     fn on_hover_status_change(&self, _: Box<dyn FnMut(bool)>) {}
+
+    fn on_minimize_status_change(&self, callback: Box<dyn FnMut(bool)>) {
+        self.0.as_ref().lock().minimize_status_callback = Some(callback);
+    }
 
     fn on_resize(&self, callback: Box<dyn FnMut(Size<Pixels>, f32)>) {
         self.0.as_ref().lock().resize_callback = Some(callback);
@@ -2447,6 +2479,17 @@ extern "C" fn window_did_change_key_status(this: &Object, selector: Sel, _: id) 
             };
         })
         .detach();
+}
+
+extern "C" fn window_did_change_miniaturized_status(this: &Object, selector: Sel, _: id) {
+    let window_state = unsafe { get_window_state(this) };
+    let mut lock = window_state.as_ref().lock();
+    if let Some(mut callback) = lock.minimize_status_callback.take() {
+        let minimized = selector == sel!(windowDidMiniaturize:);
+        drop(lock);
+        callback(minimized);
+        window_state.lock().minimize_status_callback = Some(callback);
+    }
 }
 
 extern "C" fn window_should_close(this: &Object, _: Sel, _: id) -> BOOL {

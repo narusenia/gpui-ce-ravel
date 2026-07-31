@@ -67,6 +67,7 @@ x11rb::atom_manager! {
         _NET_WM_STATE_FULLSCREEN,
         _NET_WM_STATE_HIDDEN,
         _NET_WM_STATE_FOCUSED,
+        _NET_WM_STATE_ABOVE,
         _NET_ACTIVE_WINDOW,
         _NET_WM_SYNC_REQUEST,
         _NET_WM_SYNC_REQUEST_COUNTER,
@@ -246,6 +247,7 @@ pub struct Callbacks {
     input: Option<Box<dyn FnMut(PlatformInput) -> gpui::DispatchEventResult>>,
     active_status_change: Option<Box<dyn FnMut(bool)>>,
     hovered_status_change: Option<Box<dyn FnMut(bool)>>,
+    minimize_status_change: Option<Box<dyn FnMut(bool)>>,
     resize: Option<Box<dyn FnMut(Size<Pixels>, f32)>>,
     moved: Option<Box<dyn FnMut()>>,
     should_close: Option<Box<dyn FnMut() -> bool>>,
@@ -873,8 +875,8 @@ impl Drop for X11Window {
 }
 
 enum WmHintPropertyState {
-    // Remove = 0,
-    // Add = 1,
+    Remove = 0,
+    Add = 1,
     Toggle = 2,
 }
 
@@ -1083,6 +1085,7 @@ impl X11WindowStatePtr {
             .chunks_exact(4)
             .map(|chunk| u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
 
+        let was_hidden = state.hidden;
         state.active = false;
         state.fullscreen = false;
         state.maximized_vertical = false;
@@ -1100,6 +1103,16 @@ impl X11WindowStatePtr {
                 state.maximized_horizontal = true;
             } else if atom == state.atoms._NET_WM_STATE_HIDDEN {
                 state.hidden = true;
+            }
+        }
+
+        if state.hidden != was_hidden {
+            let hidden = state.hidden;
+            drop(state);
+            let callback = self.callbacks.borrow_mut().minimize_status_change.take();
+            if let Some(mut fun) = callback {
+                fun(hidden);
+                self.callbacks.borrow_mut().minimize_status_change = Some(fun);
             }
         }
 
@@ -1629,6 +1642,21 @@ impl PlatformWindow for X11Window {
         self.0.state.borrow().fullscreen
     }
 
+    fn set_always_on_top(&self, on_top: bool) {
+        let state = self.0.state.borrow();
+        self.set_wm_hints(
+            || "X11 SendEvent to change always-on-top state failed.",
+            if on_top {
+                WmHintPropertyState::Add
+            } else {
+                WmHintPropertyState::Remove
+            },
+            state.atoms._NET_WM_STATE_ABOVE,
+            xproto::AtomEnum::NONE.into(),
+        )
+        .log_err();
+    }
+
     fn on_request_frame(&self, callback: Box<dyn FnMut(RequestFrameOptions)>) {
         self.0.callbacks.borrow_mut().request_frame = Some(callback);
     }
@@ -1643,6 +1671,10 @@ impl PlatformWindow for X11Window {
 
     fn on_hover_status_change(&self, callback: Box<dyn FnMut(bool)>) {
         self.0.callbacks.borrow_mut().hovered_status_change = Some(callback);
+    }
+
+    fn on_minimize_status_change(&self, callback: Box<dyn FnMut(bool)>) {
+        self.0.callbacks.borrow_mut().minimize_status_change = Some(callback);
     }
 
     fn on_resize(&self, callback: Box<dyn FnMut(Size<Pixels>, f32)>) {

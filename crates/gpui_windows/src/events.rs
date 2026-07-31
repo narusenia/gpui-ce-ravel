@@ -179,6 +179,8 @@ impl WindowsWindowInner {
             self.state
                 .restore_from_minimized
                 .set(self.state.callbacks.request_frame.take());
+            self.state.minimized.set(true);
+            self.report_minimize_status_change(true);
             return Some(0);
         }
 
@@ -196,9 +198,22 @@ impl WindowsWindowInner {
         } else {
             should_resize_renderer = true;
         }
+        if self.state.minimized.replace(false) {
+            self.report_minimize_status_change(false);
+        }
 
         self.handle_size_change(new_size, scale_factor, should_resize_renderer);
         Some(0)
+    }
+
+    fn report_minimize_status_change(&self, minimized: bool) {
+        if let Some(mut callback) = self.state.callbacks.minimize_status_change.take() {
+            callback(minimized);
+            self.state
+                .callbacks
+                .minimize_status_change
+                .set(Some(callback));
+        }
     }
 
     fn handle_size_change(

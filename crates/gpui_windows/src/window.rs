@@ -55,6 +55,7 @@ pub struct WindowsWindowState {
     pub background_appearance: Cell<WindowBackgroundAppearance>,
     pub scale_factor: Cell<f32>,
     pub restore_from_minimized: Cell<Option<Box<dyn FnMut(RequestFrameOptions)>>>,
+    pub minimized: Cell<bool>,
 
     pub callbacks: Callbacks,
     pub input_handler: Cell<Option<PlatformInputHandler>>,
@@ -177,6 +178,7 @@ impl WindowsWindowState {
             background_appearance: Cell::new(WindowBackgroundAppearance::Opaque),
             scale_factor: Cell::new(scale_factor),
             restore_from_minimized: Cell::new(restore_from_minimized),
+            minimized: Cell::new(false),
             min_size,
             callbacks,
             input_handler: Cell::new(input_handler),
@@ -395,6 +397,7 @@ pub(crate) struct Callbacks {
     pub(crate) input: Cell<Option<Box<dyn FnMut(PlatformInput) -> DispatchEventResult>>>,
     pub(crate) active_status_change: Cell<Option<Box<dyn FnMut(bool)>>>,
     pub(crate) hovered_status_change: Cell<Option<Box<dyn FnMut(bool)>>>,
+    pub(crate) minimize_status_change: Cell<Option<Box<dyn FnMut(bool)>>>,
     pub(crate) resize: Cell<Option<Box<dyn FnMut(Size<Pixels>, f32)>>>,
     pub(crate) moved: Cell<Option<Box<dyn FnMut()>>>,
     pub(crate) should_close: Cell<Option<Box<dyn FnMut() -> bool>>>,
@@ -924,6 +927,27 @@ impl PlatformWindow for WindowsWindow {
         unsafe { ShowWindowAsync(self.0.hwnd, SW_MINIMIZE).ok().log_err() };
     }
 
+    fn set_always_on_top(&self, on_top: bool) {
+        let hwnd = self.0.hwnd;
+        self.0
+            .executor
+            .spawn(async move {
+                unsafe {
+                    SetWindowPos(
+                        hwnd,
+                        Some(if on_top { HWND_TOPMOST } else { HWND_NOTOPMOST }),
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                    )
+                    .log_err();
+                }
+            })
+            .detach();
+    }
+
     fn zoom(&self) {
         let is_visible = unsafe { IsWindowVisible(self.0.hwnd).as_bool() };
         if !is_visible {
@@ -1007,6 +1031,14 @@ impl PlatformWindow for WindowsWindow {
             .state
             .callbacks
             .hovered_status_change
+            .set(Some(callback));
+    }
+
+    fn on_minimize_status_change(&self, callback: Box<dyn FnMut(bool)>) {
+        self.0
+            .state
+            .callbacks
+            .minimize_status_change
             .set(Some(callback));
     }
 

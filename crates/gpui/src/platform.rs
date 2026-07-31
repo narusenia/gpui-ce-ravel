@@ -652,10 +652,21 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn zoom(&self);
     fn toggle_fullscreen(&self);
     fn is_fullscreen(&self) -> bool;
+    /// Sets whether the window should float above other windows.
+    ///
+    /// The default implementation does nothing and logs a warning.
+    fn set_always_on_top(&self, _on_top: bool) {
+        log::warn!("set_always_on_top is not supported on this platform");
+    }
     fn on_request_frame(&self, callback: Box<dyn FnMut(RequestFrameOptions)>);
     fn on_input(&self, callback: Box<dyn FnMut(PlatformInput) -> DispatchEventResult>);
     fn on_active_status_change(&self, callback: Box<dyn FnMut(bool)>);
     fn on_hover_status_change(&self, callback: Box<dyn FnMut(bool)>);
+    /// Registers a callback invoked with `true` when the window is minimized
+    /// and `false` when it is restored.
+    ///
+    /// The default implementation never invokes the callback.
+    fn on_minimize_status_change(&self, _callback: Box<dyn FnMut(bool)>) {}
     fn on_resize(&self, callback: Box<dyn FnMut(Size<Pixels>, f32)>);
     fn on_moved(&self, callback: Box<dyn FnMut()>);
     fn on_should_close(&self, callback: Box<dyn FnMut() -> bool>);
