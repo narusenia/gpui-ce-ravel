@@ -53,6 +53,7 @@ use seahash::SeaHasher;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::borrow::Cow;
+use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::ops;
@@ -70,6 +71,40 @@ use uuid::Uuid;
 pub use app_menu::*;
 pub use keyboard::*;
 pub use keystroke::*;
+
+/// Borrowed native GPU objects owned by a platform renderer.
+///
+/// The pointers are opaque to GPUI and are only valid while the renderer that
+/// supplied them remains alive. This type does not retain either object and
+/// callers must not release, destroy, or otherwise take ownership of them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NativeGpuHandles {
+    device: *mut c_void,
+    command_queue: *mut c_void,
+}
+
+impl NativeGpuHandles {
+    /// Construct a handle pair from non-null platform-owned objects.
+    ///
+    /// The returned value is still borrowed: copying it does not extend the
+    /// lifetime of either object or transfer ownership to the caller.
+    pub fn new(device: *mut c_void, command_queue: *mut c_void) -> Option<Self> {
+        (!device.is_null() && !command_queue.is_null()).then_some(Self {
+            device,
+            command_queue,
+        })
+    }
+
+    /// Return the opaque native device pointer.
+    pub fn device(&self) -> *mut c_void {
+        self.device
+    }
+
+    /// Return the opaque native command queue pointer.
+    pub fn command_queue(&self) -> *mut c_void {
+        self.command_queue
+    }
+}
 
 #[cfg(any(test, feature = "test-support"))]
 pub(crate) use test::*;
@@ -728,6 +763,16 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     }
     fn set_client_inset(&self, _inset: Pixels) {}
     fn gpu_specs(&self) -> Option<GpuSpecs>;
+
+    /// Return the native GPU device and command queue used by this window's
+    /// renderer, when the platform exposes them.
+    ///
+    /// The returned pointers are borrowed and remain valid only while this
+    /// window and its renderer remain alive. Unsupported platforms return
+    /// `None`.
+    fn native_gpu_handles(&self) -> Option<NativeGpuHandles> {
+        None
+    }
 
     /// Returns the GPU context for this window's renderer.
     /// The returned `Box` contains `(Arc<wgpu::Device>, Arc<wgpu::Queue>)`.

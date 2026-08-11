@@ -226,6 +226,16 @@ pub struct PathRasterizationVertex {
 }
 
 impl MetalRenderer {
+    /// Return the Metal objects owned by this renderer as borrowed opaque
+    /// handles. The renderer retains both objects; the returned pointers do
+    /// not acquire another retain and must not be released by the caller.
+    pub fn native_gpu_handles(&self) -> Option<gpui::NativeGpuHandles> {
+        gpui::NativeGpuHandles::new(
+            self.device.as_ptr().cast(),
+            self.command_queue.as_ptr().cast(),
+        )
+    }
+
     /// Creates a new MetalRenderer with a CAMetalLayer for window-based rendering.
     pub fn new(instance_buffer_pool: Arc<Mutex<InstanceBufferPool>>, transparent: bool) -> Self {
         let device = Self::create_device();

@@ -1679,6 +1679,10 @@ impl PlatformWindow for MacWindow {
         None
     }
 
+    fn native_gpu_handles(&self) -> Option<gpui::NativeGpuHandles> {
+        self.0.lock().renderer.native_gpu_handles()
+    }
+
     fn update_ime_position(&self, _bounds: Bounds<Pixels>) {
         let executor = self.0.lock().foreground_executor.clone();
         executor
