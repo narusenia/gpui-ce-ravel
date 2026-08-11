@@ -641,6 +641,7 @@ impl MetalRenderer {
                     });
                     let block = block.copy();
                     command_buffer.add_completed_handler(&block);
+                    add_surface_completion_handlers(scene, &command_buffer);
 
                     if self.presents_with_transaction {
                         command_buffer.commit();
@@ -714,6 +715,7 @@ impl MetalRenderer {
                     });
                     let block = block.copy();
                     command_buffer.add_completed_handler(&block);
+                    add_surface_completion_handlers(scene, &command_buffer);
 
                     // Commit and wait for completion without presenting
                     command_buffer.commit();
@@ -820,6 +822,7 @@ impl MetalRenderer {
                     });
                     let block = block.copy();
                     command_buffer.add_completed_handler(&block);
+                    add_surface_completion_handlers(scene, &command_buffer);
 
                     // On discrete GPUs (non-unified memory), Managed textures
                     // require an explicit blit synchronize before the CPU can
@@ -1984,7 +1987,7 @@ impl MetalRenderer {
                     );
                     texture_size
                 }
-                SurfaceSource::Texture { texture, size } => {
+                SurfaceSource::Texture { texture, size, .. } => {
                     let Some(texture) = (!texture.is_null()).then_some(*texture) else {
                         log::warn!("ignoring a null Metal surface texture");
                         continue;
@@ -2032,6 +2035,25 @@ impl MetalRenderer {
             *instance_offset = next_offset;
         }
         true
+    }
+}
+
+/// Attach the completion callbacks carried by texture-backed surfaces to the
+/// command buffer that samples them. The callback is cloned into the
+/// completion block, so any resource it captures remains alive until Metal
+/// has retired the command buffer.
+fn add_surface_completion_handlers(scene: &Scene, command_buffer: &metal::CommandBufferRef) {
+    for surface in &scene.surfaces {
+        let completion = match &surface.source {
+            SurfaceSource::Texture { completion, .. } => completion.clone(),
+            SurfaceSource::Surface(_) => None,
+        };
+        let Some(completion) = completion else {
+            continue;
+        };
+        let block = ConcreteBlock::new(move |_| completion());
+        let block = block.copy();
+        command_buffer.add_completed_handler(&block);
     }
 }
 
