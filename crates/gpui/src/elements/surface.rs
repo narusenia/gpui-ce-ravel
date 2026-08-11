@@ -189,7 +189,7 @@ impl Element for Surface {
                 ref size,
             } => {
                 let new_bounds = self.object_fit.get_bounds(_bounds, *size);
-                _window.paint_surface(new_bounds, Arc::clone(texture), *size);
+                _window.paint_surface(new_bounds, Arc::clone(texture), *size, None);
             }
         }
     }

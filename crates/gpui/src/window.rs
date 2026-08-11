@@ -1,5 +1,7 @@
 #[cfg(any(feature = "inspector", debug_assertions))]
 use crate::Inspector;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use crate::SurfaceCompletion;
 use crate::{
     Action, AnyDrag, AnyElement, AnyImageCache, AnyTooltip, AnyView, App, AppContext, Arena, Asset,
     AsyncWindowContext, AvailableSpace, BackdropFilter, Background, BorderStyle, Bounds, BoxShadow,
@@ -4272,6 +4274,7 @@ impl Window {
         bounds: Bounds<Pixels>,
         texture: std::sync::Arc<dyn std::any::Any + Send + Sync>,
         texture_size: Size<DevicePixels>,
+        completion: Option<SurfaceCompletion>,
     ) {
         use crate::PaintSurface;
 
@@ -4286,6 +4289,7 @@ impl Window {
             content_mask,
             texture,
             texture_size,
+            completion,
         });
     }
 

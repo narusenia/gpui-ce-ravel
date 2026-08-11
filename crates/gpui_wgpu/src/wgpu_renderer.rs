@@ -3,7 +3,7 @@ use bytemuck::{Pod, Zeroable};
 use gpui::{
     AtlasTextureId, BackdropFilter, Background, Bounds, DevicePixels, FilterBoundary, GpuSpecs,
     MonochromeSprite, PaintSurface, Path, Point, PolychromeSprite, PrimitiveBatch, Quad,
-    ScaledFilter, ScaledPixels, Scene, Shadow, Size, SubpixelSprite, Underline,
+    ScaledFilter, ScaledPixels, Scene, Shadow, Size, SubpixelSprite, SurfaceCompletion, Underline,
     get_gamma_correction_ratios,
 };
 use log::warn;
@@ -1524,6 +1524,7 @@ impl WgpuRenderer {
             // Reset the blur-params bump cursor each (re)render of the scene.
             self.blur_params_slot.set(0);
             let mut overflow = false;
+            let mut surface_completions = Vec::<SurfaceCompletion>::new();
 
             let mut encoder =
                 self.resources()
@@ -1653,9 +1654,11 @@ impl WgpuRenderer {
                                 &mut instance_offset,
                                 &mut pass,
                             ),
-                        PrimitiveBatch::Surfaces(range) => {
-                            self.draw_surfaces(&scene.surfaces[range], &mut pass)
-                        }
+                        PrimitiveBatch::Surfaces(range) => self.draw_surfaces(
+                            &scene.surfaces[range],
+                            &mut pass,
+                            &mut surface_completions,
+                        ),
                         PrimitiveBatch::BackdropFilters(range) => {
                             // Interrupt the current pass, blur the content painted so far behind
                             // each backdrop's rounded rect, then resume drawing on top.
@@ -1781,9 +1784,15 @@ impl WgpuRenderer {
                 self.blit_to_frame(&mut encoder, scene_color_view, &frame_view);
             }
 
-            self.resources()
-                .queue
-                .submit(std::iter::once(encoder.finish()));
+            let queue = self.resources().queue.clone();
+            queue.submit(std::iter::once(encoder.finish()));
+            if !surface_completions.is_empty() {
+                queue.on_submitted_work_done(move || {
+                    for completion in surface_completions {
+                        completion();
+                    }
+                });
+            }
             frame.present();
             return true;
         }
@@ -1882,12 +1891,20 @@ impl WgpuRenderer {
     }
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-    fn draw_surfaces(&self, surfaces: &[PaintSurface], pass: &mut wgpu::RenderPass<'_>) -> bool {
+    fn draw_surfaces(
+        &self,
+        surfaces: &[PaintSurface],
+        pass: &mut wgpu::RenderPass<'_>,
+        completions: &mut Vec<SurfaceCompletion>,
+    ) -> bool {
         let resources = self.resources();
         for surface in surfaces {
             let Some(wgpu_texture) = surface.texture.downcast_ref::<wgpu::Texture>() else {
                 continue;
             };
+            if let Some(completion) = surface.completion.clone() {
+                completions.push(completion);
+            }
 
             let texture_view = wgpu_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -1932,7 +1949,12 @@ impl WgpuRenderer {
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
-    fn draw_surfaces(&self, _surfaces: &[PaintSurface], _pass: &mut wgpu::RenderPass<'_>) -> bool {
+    fn draw_surfaces(
+        &self,
+        _surfaces: &[PaintSurface],
+        _pass: &mut wgpu::RenderPass<'_>,
+        _completions: &mut Vec<SurfaceCompletion>,
+    ) -> bool {
         true
     }
 

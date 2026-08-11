@@ -889,7 +889,7 @@ impl From<PolychromeSprite> for Primitive {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 #[allow(missing_docs)]
 pub struct PaintSurface {
     pub order: DrawOrder,
@@ -901,6 +901,29 @@ pub struct PaintSurface {
     pub texture: std::sync::Arc<dyn std::any::Any + Send + Sync>,
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     pub texture_size: Size<crate::DevicePixels>,
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub completion: Option<crate::SurfaceCompletion>,
+}
+
+impl Debug for PaintSurface {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug = f.debug_struct("PaintSurface");
+        debug
+            .field("order", &self.order)
+            .field("bounds", &self.bounds)
+            .field("content_mask", &self.content_mask);
+
+        #[cfg(target_os = "macos")]
+        debug.field("source", &self.source);
+
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        debug
+            .field("texture", &"<type-erased>")
+            .field("texture_size", &self.texture_size)
+            .field("completion", &self.completion.is_some());
+
+        debug.finish()
+    }
 }
 
 impl From<PaintSurface> for Primitive {
