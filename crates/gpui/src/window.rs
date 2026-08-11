@@ -2,6 +2,12 @@
 use crate::DebugFrameOverlayMode;
 #[cfg(any(feature = "inspector", debug_assertions))]
 use crate::Inspector;
+#[cfg(any(
+    target_os = "linux",
+    target_os = "freebsd",
+    all(target_os = "windows", feature = "wgpu-surfaces")
+))]
+use crate::SurfaceCompletion;
 #[cfg(feature = "profiler")]
 use crate::profiler;
 use crate::{
@@ -4871,6 +4877,7 @@ impl Window {
         bounds: Bounds<Pixels>,
         texture: std::sync::Arc<dyn std::any::Any + Send + Sync>,
         texture_size: Size<DevicePixels>,
+        completion: Option<SurfaceCompletion>,
     ) {
         use crate::PaintSurface;
 
@@ -4885,6 +4892,7 @@ impl Window {
             content_mask,
             texture,
             texture_size,
+            completion,
         });
     }
 
