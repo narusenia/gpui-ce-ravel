@@ -9,8 +9,16 @@ use core::ffi::c_void;
 #[cfg(target_os = "macos")]
 use core_video::pixel_buffer::CVPixelBuffer;
 use refineable::Refineable;
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use std::sync::Arc;
+
+/// A notification delivered after the renderer has finished consuming a
+/// texture-backed surface.
+///
+/// The callback runs on the renderer's completion path and is retained by the
+/// submitted command until that command finishes. Resource providers can use
+/// it to release a borrowed GPU resource without making the renderer know the
+/// resource's concrete type or ownership rules.
+pub type SurfaceCompletion = Arc<dyn Fn() + Send + Sync + 'static>;
 
 /// A source of a surface's content.
 pub enum SurfaceSource {
@@ -27,6 +35,9 @@ pub enum SurfaceSource {
         texture: *mut c_void,
         /// Dimensions of the texture in device pixels.
         size: Size<DevicePixels>,
+        /// Called after the renderer's command buffer has finished sampling
+        /// the texture, if the provider needs a completion signal.
+        completion: Option<SurfaceCompletion>,
     },
     /// A GPU texture handle (type-erased to avoid depending on wgpu)
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
@@ -44,7 +55,15 @@ impl Clone for SurfaceSource {
             #[cfg(target_os = "macos")]
             SurfaceSource::Surface(ref buf) => SurfaceSource::Surface(buf.clone()),
             #[cfg(target_os = "macos")]
-            SurfaceSource::Texture { texture, size } => SurfaceSource::Texture { texture, size },
+            SurfaceSource::Texture {
+                texture,
+                size,
+                ref completion,
+            } => SurfaceSource::Texture {
+                texture,
+                size,
+                completion: completion.clone(),
+            },
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             SurfaceSource::Texture { ref texture, size } => SurfaceSource::Texture {
                 texture: Arc::clone(texture),
@@ -187,5 +206,36 @@ impl IntoElement for Surface {
 impl Styled for Surface {
     fn style(&mut self) -> &mut StyleRefinement {
         &mut self.style
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn texture_completion_survives_source_clone() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let callback_calls = Arc::clone(&calls);
+        let source = SurfaceSource::Texture {
+            texture: std::ptr::null_mut(),
+            size: crate::size(DevicePixels(1), DevicePixels(1)),
+            completion: Some(Arc::new(move || {
+                callback_calls.fetch_add(1, Ordering::Relaxed);
+            })),
+        };
+
+        let cloned = source.clone();
+        let SurfaceSource::Texture {
+            completion: Some(completion),
+            ..
+        } = cloned
+        else {
+            panic!("texture completion was not cloned");
+        };
+        completion();
+
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
     }
 }

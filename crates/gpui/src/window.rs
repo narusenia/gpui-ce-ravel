@@ -4244,12 +4244,20 @@ impl Window {
                     source: SurfaceSource::Surface(image_buffer),
                 });
             }
-            SurfaceSource::Texture { texture, size } => {
+            SurfaceSource::Texture {
+                texture,
+                size,
+                completion,
+            } => {
                 self.next_frame.scene.insert_primitive(PaintSurface {
                     order: 0,
                     bounds,
                     content_mask,
-                    source: SurfaceSource::Texture { texture, size },
+                    source: SurfaceSource::Texture {
+                        texture,
+                        size,
+                        completion,
+                    },
                 });
             }
         }
