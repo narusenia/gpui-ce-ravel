@@ -1348,6 +1348,37 @@ impl WgpuRenderer {
         (resources.device.clone(), resources.queue.clone())
     }
 
+    /// The renderer's instance and adapter, alongside the device and queue
+    /// [`Self::gpu_context`] already returns.
+    ///
+    /// An embedder that wants to *share* this renderer's GPU — rather than
+    /// merely submit alongside it — needs all four: the adapter to read the
+    /// device's limits and identity, and the instance to enumerate surfaces
+    /// against the same backend. Handing out only the device and queue leaves
+    /// it guessing, and a guess that picks a different adapter silently ends
+    /// up on a different device.
+    ///
+    /// `None` before the renderer has acquired its context, and while a lost
+    /// device is being recovered.
+    pub fn gpu_context_full(
+        &self,
+    ) -> Option<(
+        wgpu::Instance,
+        wgpu::Adapter,
+        Arc<wgpu::Device>,
+        Arc<wgpu::Queue>,
+    )> {
+        let context = self.context.as_ref()?;
+        let context = context.borrow();
+        let context = context.as_ref()?;
+        Some((
+            context.instance.clone(),
+            context.adapter.clone(),
+            context.device.clone(),
+            context.queue.clone(),
+        ))
+    }
+
     pub fn gpu_specs(&self) -> GpuSpecs {
         GpuSpecs {
             is_software_emulated: self.adapter_info.device_type == wgpu::DeviceType::Cpu,

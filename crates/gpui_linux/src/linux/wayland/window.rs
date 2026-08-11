@@ -1569,6 +1569,11 @@ impl PlatformWindow for WaylandWindow {
         Some(Box::new((device, queue)))
     }
 
+    fn gpu_context_full(&self) -> Option<Box<dyn std::any::Any>> {
+        let full = self.borrow().renderer.gpu_context_full()?;
+        Some(Box::new(full))
+    }
+
     fn gpu_device_lost(&self) -> Option<bool> {
         // Only loads an atomic flag — safe even mid-recovery, when
         // `gpu_context` would panic on the torn-down resources.

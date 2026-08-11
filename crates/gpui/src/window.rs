@@ -5605,6 +5605,22 @@ impl Window {
         self.platform_window.native_gpu_handles()
     }
 
+    /// Returns this window's renderer GPU objects in full, when its renderer
+    /// is wgpu-backed. The returned `Box` contains
+    /// `(wgpu::Instance, wgpu::Adapter, Arc<wgpu::Device>, Arc<wgpu::Queue>)`.
+    ///
+    /// Use this rather than [`Self::gpu_context`] to run your own wgpu work on
+    /// the renderer's device: the adapter carries the limits and identity you
+    /// would otherwise have to guess, and re-enumerating to recover them can
+    /// select a different device.
+    ///
+    /// `None` when the renderer is not wgpu-backed, before it has acquired its
+    /// context, or while a lost device is recovering.
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
+    pub fn gpu_context_full(&self) -> Option<Box<dyn std::any::Any>> {
+        self.platform_window.gpu_context_full()
+    }
+
     /// Returns the GPU context (device + queue) if available.
     /// The returned `Box` contains `(Arc<wgpu::Device>, Arc<wgpu::Queue>)`.
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]

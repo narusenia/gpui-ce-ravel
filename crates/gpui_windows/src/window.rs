@@ -1125,6 +1125,18 @@ impl PlatformWindow for WindowsWindow {
         self.state.renderer.borrow().gpu_specs().log_err()
     }
 
+    /// Only the wgpu renderer has these. The default Windows renderer is
+    /// D3D11-native, and wgpu has no D3D11 backend to hand them out through.
+    fn gpu_context_full(&self) -> Option<Box<dyn std::any::Any>> {
+        #[cfg(feature = "wgpu")]
+        {
+            let full = self.state.renderer.borrow().gpu_context_full()?;
+            return Some(Box::new(full));
+        }
+        #[cfg(not(feature = "wgpu"))]
+        None
+    }
+
     fn update_ime_position(&self, bounds: Bounds<Pixels>) {
         let scale_factor = self.state.scale_factor.get();
         let caret_position = POINT {

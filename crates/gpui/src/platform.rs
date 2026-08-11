@@ -781,6 +781,21 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
         None
     }
 
+    /// Returns this window's renderer GPU objects in full. The returned `Box`
+    /// contains `(wgpu::Instance, wgpu::Adapter, Arc<wgpu::Device>,
+    /// Arc<wgpu::Queue>)`.
+    ///
+    /// [`Self::gpu_context`] answers "what may I submit through"; this answers
+    /// "which GPU is this, exactly". An embedder that runs its own wgpu
+    /// pipeline on the renderer's device needs the adapter for its limits and
+    /// identity and the instance to stay on one backend — deriving either by
+    /// re-enumerating can land on a different device, which makes any texture
+    /// it shares back unusable.
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
+    fn gpu_context_full(&self) -> Option<Box<dyn std::any::Any>> {
+        None
+    }
+
     /// Whether this window's GPU device has been lost (the platform renderer
     /// recovers it on a subsequent draw). `None` when the backend cannot
     /// know. Safe to call mid-recovery, unlike `gpu_context`. Embedders that
