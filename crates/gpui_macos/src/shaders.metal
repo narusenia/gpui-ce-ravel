@@ -899,6 +899,16 @@ fragment float4 surface_fragment(SurfaceFragmentInput input [[stage_in]],
   return ycbcrToRGBTransform * ycbcr;
 }
 
+// Ravel and other native GPU producers may hand GPUI an RGBA texture directly.
+// The surface pipeline stores its display bytes in BGRA order for the CPU image
+// path, so swizzle them back to logical RGB before writing the BGRA drawable.
+fragment float4 rgba_surface_fragment(
+    SurfaceFragmentInput input [[stage_in]],
+    texture2d<float> texture [[texture(SurfaceInputIndex_Texture)]]) {
+  constexpr sampler texture_sampler(mag_filter::linear, min_filter::linear);
+  return texture.sample(texture_sampler, input.texture_position).bgra;
+}
+
 float4 hsla_to_rgba(Hsla hsla) {
   float h = hsla.h * 6.0; // Now, it's an angle but scaled in [0, 6) range
   float s = hsla.s;

@@ -14,16 +14,14 @@ use crate::{
     RenderGlyphParams, RenderImage, RenderImageParams, RenderSvgParams, Replay, ResizeEdge,
     SMOOTH_SVG_SCALE_FACTOR, SUBPIXEL_VARIANTS_X, SUBPIXEL_VARIANTS_Y, ScaledFilter, ScaledPixels,
     Scene, Shadow, SharedString, Size, StrikethroughStyle, Style, SubpixelSprite, SubscriberSet,
-    Subscription, SystemWindowTab, SystemWindowTabController, TabStopMap, TaffyLayoutEngine, Task,
-    TextRenderingMode, TextStyle, TextStyleRefinement, ThermalState, TransformationMatrix,
-    Transition, TransitionState, Underline, UnderlineStyle, WindowAppearance,
+    Subscription, SurfaceSource, SystemWindowTab, SystemWindowTabController, TabStopMap,
+    TaffyLayoutEngine, Task, TextRenderingMode, TextStyle, TextStyleRefinement, ThermalState,
+    TransformationMatrix, Transition, TransitionState, Underline, UnderlineStyle, WindowAppearance,
     WindowBackgroundAppearance, WindowBounds, WindowControls, WindowDecorations, WindowOptions,
     WindowParams, WindowTextSystem, point, prelude::*, px, rems, size, transparent_black,
 };
 use anyhow::{Context as _, Result, anyhow};
 use collections::{FxHashMap, FxHashSet};
-#[cfg(target_os = "macos")]
-use core_video::pixel_buffer::CVPixelBuffer;
 use derive_more::{Deref, DerefMut};
 use futures::FutureExt;
 use futures::channel::oneshot;
@@ -4230,19 +4228,31 @@ impl Window {
     ///
     /// This method should only be called as part of the paint phase of element drawing.
     #[cfg(target_os = "macos")]
-    pub fn paint_surface(&mut self, bounds: Bounds<Pixels>, image_buffer: CVPixelBuffer) {
+    pub fn paint_surface(&mut self, bounds: Bounds<Pixels>, source: impl Into<SurfaceSource>) {
         use crate::PaintSurface;
 
         self.invalidator.debug_assert_paint();
 
         let bounds = self.snap_bounds(bounds);
         let content_mask = self.snapped_content_mask();
-        self.next_frame.scene.insert_primitive(PaintSurface {
-            order: 0,
-            bounds,
-            content_mask,
-            image_buffer,
-        });
+        match source.into() {
+            SurfaceSource::Surface(image_buffer) => {
+                self.next_frame.scene.insert_primitive(PaintSurface {
+                    order: 0,
+                    bounds,
+                    content_mask,
+                    source: SurfaceSource::Surface(image_buffer),
+                });
+            }
+            SurfaceSource::Texture { texture, size } => {
+                self.next_frame.scene.insert_primitive(PaintSurface {
+                    order: 0,
+                    bounds,
+                    content_mask,
+                    source: SurfaceSource::Texture { texture, size },
+                });
+            }
+        }
     }
 
     /// Paint a surface into the scene for the next frame at the current z-index.
