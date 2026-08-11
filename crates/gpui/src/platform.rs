@@ -802,7 +802,7 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     /// captured the device from `gpu_context` should stop submitting while
     /// this is `Some(true)` and re-acquire the device once it reads
     /// `Some(false)` again.
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     fn gpu_device_lost(&self) -> Option<bool> {
         None
     }

@@ -897,11 +897,11 @@ pub struct PaintSurface {
     pub content_mask: ContentMask<ScaledPixels>,
     #[cfg(target_os = "macos")]
     pub source: crate::SurfaceSource,
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     pub texture: std::sync::Arc<dyn std::any::Any + Send + Sync>,
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     pub texture_size: Size<crate::DevicePixels>,
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     pub completion: Option<crate::SurfaceCompletion>,
 }
 
@@ -916,7 +916,7 @@ impl Debug for PaintSurface {
         #[cfg(target_os = "macos")]
         debug.field("source", &self.source);
 
-        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
         debug
             .field("texture", &"<type-erased>")
             .field("texture_size", &self.texture_size)

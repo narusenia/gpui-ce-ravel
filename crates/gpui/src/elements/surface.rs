@@ -2,7 +2,12 @@ use crate::{
     App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, IntoElement, LayoutId,
     ObjectFit, Pixels, Style, StyleRefinement, Styled, Window,
 };
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "freebsd"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "windows"
+))]
 use crate::{DevicePixels, Size};
 #[cfg(target_os = "macos")]
 use core::ffi::c_void;
@@ -40,7 +45,7 @@ pub enum SurfaceSource {
         completion: Option<SurfaceCompletion>,
     },
     /// A GPU texture handle (type-erased to avoid depending on wgpu)
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     Texture {
         /// The GPU texture, type-erased (expected to be `Arc<wgpu::Texture>`)
         texture: Arc<dyn std::any::Any + Send + Sync>,
@@ -64,7 +69,7 @@ impl Clone for SurfaceSource {
                 size,
                 completion: completion.clone(),
             },
-            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
             SurfaceSource::Texture { ref texture, size } => SurfaceSource::Texture {
                 texture: Arc::clone(texture),
                 size,
@@ -83,7 +88,7 @@ impl std::fmt::Debug for SurfaceSource {
                 .debug_struct("Texture")
                 .field("size", &size)
                 .finish_non_exhaustive(),
-            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
             SurfaceSource::Texture { size, .. } => _f
                 .debug_struct("Texture")
                 .field("size", &size)
@@ -183,7 +188,7 @@ impl Element for Surface {
                 // TODO: Add support for corner_radii
                 _window.paint_surface(new_bounds, self.source.clone());
             }
-            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
             SurfaceSource::Texture {
                 ref texture,
                 ref size,

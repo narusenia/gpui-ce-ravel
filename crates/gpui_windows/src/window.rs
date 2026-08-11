@@ -1137,6 +1137,13 @@ impl PlatformWindow for WindowsWindow {
         None
     }
 
+    fn gpu_device_lost(&self) -> Option<bool> {
+        #[cfg(feature = "wgpu")]
+        return Some(self.state.renderer.borrow().device_lost());
+        #[cfg(not(feature = "wgpu"))]
+        None
+    }
+
     fn update_ime_position(&self, bounds: Bounds<Pixels>) {
         let scale_factor = self.state.scale_factor.get();
         let caret_position = POINT {

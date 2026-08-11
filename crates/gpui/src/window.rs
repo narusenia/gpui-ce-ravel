@@ -1,6 +1,6 @@
 #[cfg(any(feature = "inspector", debug_assertions))]
 use crate::Inspector;
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
 use crate::SurfaceCompletion;
 use crate::{
     Action, AnyDrag, AnyElement, AnyImageCache, AnyTooltip, AnyView, App, AppContext, Arena, Asset,
@@ -4268,7 +4268,7 @@ impl Window {
     /// Paint a surface into the scene for the next frame at the current z-index.
     ///
     /// This method should only be called as part of the paint phase of element drawing.
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     pub fn paint_surface(
         &mut self,
         bounds: Bounds<Pixels>,
@@ -5637,7 +5637,7 @@ impl Window {
     /// cannot know. Embedders that captured the device from
     /// [`Self::gpu_context`] should stop submitting while this is
     /// `Some(true)` and re-acquire the device once it reads `Some(false)`.
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     pub fn gpu_device_lost(&self) -> Option<bool> {
         self.platform_window.gpu_device_lost()
     }

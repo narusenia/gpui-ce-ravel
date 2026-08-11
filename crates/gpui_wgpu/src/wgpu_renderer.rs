@@ -1890,7 +1890,7 @@ impl WgpuRenderer {
         )
     }
 
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     fn draw_surfaces(
         &self,
         surfaces: &[PaintSurface],
@@ -1948,7 +1948,7 @@ impl WgpuRenderer {
         true
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
+    #[cfg(not(any(target_os = "linux", target_os = "freebsd", target_os = "windows")))]
     fn draw_surfaces(
         &self,
         _surfaces: &[PaintSurface],
