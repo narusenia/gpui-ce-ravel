@@ -1346,7 +1346,12 @@ fn fs_surface(input: SurfaceVarying) -> @location(0) vec4<f32> {
         return vec4<f32>(0.0);
     }
 
-    return textureSampleLevel(t_surface, s_surface, input.texture_position, 0.0);
+    // A texture-backed surface carries its display bytes in **BGRA order**, the
+    // same contract `rgba_surface_fragment` follows in the Metal renderer:
+    // producers write those bytes for the CPU image path and hand the very same
+    // texture over when the zero-copy path is available. Swizzle back to
+    // logical RGB here so both renderers agree on what a surface texture means.
+    return textureSampleLevel(t_surface, s_surface, input.texture_position, 0.0).bgra;
 }
 
 // --- blur --- //
