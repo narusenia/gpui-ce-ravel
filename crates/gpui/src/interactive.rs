@@ -84,7 +84,7 @@ impl Deref for ModifiersChangedEvent {
 
 /// The phase of a touch motion event.
 /// Based on the winit enum of the same name.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TouchPhase {
     /// The touch started.
     Started,
@@ -93,6 +93,10 @@ pub enum TouchPhase {
     Moved,
     /// The touch phase has ended
     Ended,
+    /// The touch was cancelled: the system took it and it will not end
+    /// normally. Consumers must fully unwind any in-progress interaction,
+    /// treating the touch as if it never committed.
+    Cancelled,
 }
 
 /// A mouse down event from the platform
