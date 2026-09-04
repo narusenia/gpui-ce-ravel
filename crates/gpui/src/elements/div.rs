@@ -1229,6 +1229,13 @@ pub trait StatefulInteractiveElement: InteractiveElement {
         self
     }
 
+    /// Set the step by which assistive technology should expect the numeric
+    /// value of this element to change (e.g. when incrementing a spin button).
+    fn aria_numeric_value_step(mut self, step: f64) -> Self {
+        self.interactivity().aria_numeric_value_step = Some(step);
+        self
+    }
+
     /// Set the orientation of this element.
     fn aria_orientation(mut self, orientation: accesskit::Orientation) -> Self {
         self.interactivity().aria_orientation = Some(orientation);
@@ -1315,6 +1322,14 @@ pub trait StatefulInteractiveElement: InteractiveElement {
     /// Set the overflow y to scroll.
     fn overflow_y_scroll(mut self) -> Self {
         self.interactivity().base_style.overflow.y = Some(Overflow::Scroll);
+        self
+    }
+
+    /// Restrict scrolling of this element to the axis of the input gesture.
+    ///
+    /// See [`Style::restrict_scroll_to_axis`](crate::Style::restrict_scroll_to_axis) for details.
+    fn restrict_scroll_to_axis(mut self) -> Self {
+        self.interactivity().base_style.restrict_scroll_to_axis = Some(true);
         self
     }
 
@@ -1850,6 +1865,7 @@ pub struct Interactivity {
     pub(crate) aria_numeric_value: Option<f64>,
     pub(crate) aria_min_numeric_value: Option<f64>,
     pub(crate) aria_max_numeric_value: Option<f64>,
+    pub(crate) aria_numeric_value_step: Option<f64>,
     pub(crate) aria_orientation: Option<accesskit::Orientation>,
     pub(crate) aria_level: Option<usize>,
     pub(crate) aria_position_in_set: Option<usize>,
@@ -3083,6 +3099,9 @@ impl Interactivity {
         }
         if let Some(value) = self.aria_max_numeric_value {
             node.set_max_numeric_value(value);
+        }
+        if let Some(step) = self.aria_numeric_value_step {
+            node.set_numeric_value_step(step);
         }
         if let Some(orientation) = self.aria_orientation {
             node.set_orientation(orientation);
