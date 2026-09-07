@@ -2267,6 +2267,20 @@ impl Window {
         self.on_next_frame(move |_, cx| cx.notify(entity));
     }
 
+    /// Runs all callbacks scheduled via [`Self::on_next_frame`], returning how many ran.
+    ///
+    /// Tests have no platform frame loop, so this simulates the delivery of the
+    /// next frame.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn simulate_next_frame(&mut self, cx: &mut App) -> usize {
+        let callbacks = self.next_frame_callbacks.take();
+        let count = callbacks.len();
+        for callback in callbacks {
+            callback(self, cx);
+        }
+        count
+    }
+
     /// Spawn the future returned by the given closure on the application thread pool.
     /// The closure is provided a handle to the current window and an `AsyncWindowContext` for
     /// use within your future.
@@ -6555,5 +6569,31 @@ pub fn outline(
         border_widths: (1.).into(),
         border_color: border_color.into(),
         border_style,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::TestAppContext;
+
+    #[gpui::test]
+    fn simulate_next_frame_drains_the_scheduled_callbacks(cx: &mut TestAppContext) {
+        let window = cx.add_empty_window();
+        let ran = Rc::new(Cell::new(0usize));
+
+        let count = window.update(|window, cx| {
+            for _ in 0..2 {
+                let ran = ran.clone();
+                window.on_next_frame(move |_, _| ran.set(ran.get() + 1));
+            }
+            window.simulate_next_frame(cx)
+        });
+        assert_eq!(count, 2);
+        assert_eq!(ran.get(), 2);
+
+        // The queue was drained, so the frame after it runs nothing.
+        assert_eq!(window.update(|window, cx| window.simulate_next_frame(cx)), 0);
+        assert_eq!(ran.get(), 2);
     }
 }
