@@ -258,5 +258,17 @@ mod tests {
         completion();
 
         assert_eq!(calls.load(Ordering::Relaxed), 1);
+
+        // The original keeps its own handle, so the clone did not move it out.
+        let SurfaceSource::Texture {
+            completion: Some(completion),
+            ..
+        } = source
+        else {
+            panic!("texture completion left the original source");
+        };
+        completion();
+
+        assert_eq!(calls.load(Ordering::Relaxed), 2);
     }
 }
