@@ -8,6 +8,8 @@ use crate::Inspector;
     all(target_os = "windows", feature = "wgpu-surfaces")
 ))]
 use crate::SurfaceCompletion;
+#[cfg(target_os = "macos")]
+use crate::SurfaceSource;
 #[cfg(feature = "profiler")]
 use crate::profiler;
 use crate::{
@@ -24,10 +26,10 @@ use crate::{
     PromptLevel, Quad, Render, RenderGlyphParams, RenderImage, RenderImageParams, RenderSvgParams,
     Replay, ResizeEdge, SMOOTH_SVG_SCALE_FACTOR, SUBPIXEL_VARIANTS_X, SUBPIXEL_VARIANTS_Y,
     ScaledFilter, ScaledPixels, Scene, Shadow, SharedString, Size, StrikethroughStyle, Style,
-    SubpixelSprite, SubscriberSet, Subscription, SurfaceSource, SystemWindowTab,
-    SystemWindowTabController, TabStopMap, TaffyLayoutEngine, Task, TextInputConfiguration,
-    TextInputStateChange, TextRenderingMode, TextStyle, TextStyleRefinement, ThermalState,
-    TransformationMatrix, Transition, TransitionState, Underline, UnderlineStyle, WindowAppearance,
+    SubpixelSprite, SubscriberSet, Subscription, SystemWindowTab, SystemWindowTabController,
+    TabStopMap, TaffyLayoutEngine, Task, TextInputConfiguration, TextInputStateChange,
+    TextRenderingMode, TextStyle, TextStyleRefinement, ThermalState, TransformationMatrix,
+    Transition, TransitionState, Underline, UnderlineStyle, WindowAppearance,
     WindowBackgroundAppearance, WindowBounds, WindowControls, WindowDecorations, WindowOptions,
     WindowParams, WindowTextSystem, point, prelude::*, px, rems, size, transparent_black,
 };
