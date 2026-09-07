@@ -4029,7 +4029,7 @@ mod tests {
 
         test_app
             .update_window(any_window, |_, window, cx| {
-                window.draw(cx).clear();
+                window.draw(cx).clear(cx);
             })
             .unwrap();
 
@@ -4049,7 +4049,7 @@ mod tests {
 
         test_app
             .update_window(any_window, |_, window, cx| {
-                window.draw(cx).clear();
+                window.draw(cx).clear(cx);
             })
             .unwrap();
 
